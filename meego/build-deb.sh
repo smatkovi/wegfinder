@@ -29,6 +29,8 @@ cp meego/qml/*.qml meego/qml/*.js "$STAGE/opt/wegfinder/qml/"
 cp meego/qml/bilder/*.png "$STAGE/opt/wegfinder/qml/bilder/"
 cp meego/wegfinder.desktop "$STAGE/usr/share/applications/"
 cp meego/postinst meego/prerm "$STAGE/DEBIAN/"
+# Aegis: Standort fuer "Mein Standort" und "In der Naehe"
+cp meego/wegfinder.aegis "$STAGE/DEBIAN/_aegis"
 chmod 755 "$STAGE/DEBIAN/postinst" "$STAGE/DEBIAN/prerm"
 cp meego/icons/icon-80.png "$STAGE/usr/share/icons/hicolor/80x80/apps/wegfinder.png"
 

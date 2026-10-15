@@ -1,0 +1,6 @@
+<aegis>
+        <request>
+                <credential name="Location" />
+                <for path="/opt/wegfinder/bin/wegfinder" />
+        </request>
+</aegis>

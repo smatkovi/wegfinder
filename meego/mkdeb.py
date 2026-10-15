@@ -6,7 +6,7 @@
     python3 mkdeb.py --info AUSGABE.deb      # Ersatz fuer "dpkg-deb -I/-c"
 
 STAGE enthaelt den Dateibaum, wie er auf dem Geraet landen soll, plus
-STAGE/DEBIAN/control.  Alles andere (md5sums, Installed-Size, die beiden
+STAGE/DEBIAN/control (und optional STAGE/DEBIAN/_aegis, das Aegis-Manifest).  Alles andere (md5sums, Installed-Size, die beiden
 tar.gz und die ar-Huelle) erzeugt dieses Skript.
 
 Warum nicht dpkg-deb oder GNU ar?
@@ -221,6 +221,13 @@ def main(argv):
         f.write(ar_member("debian-binary", b"2.0\n"))
         f.write(ar_member("control.tar.gz", ctl_tgz))
         f.write(ar_member("data.tar.gz", data_tgz))
+        # Aegis-Manifest (Berechtigungen wie "Location"): eigenes Mitglied
+        # "_aegis" hinter data.tar.gz, so wie es aegis-deb-add bzw. Qt Creator
+        # schreibt. Ohne es bekommt das Programm am N9 z. B. keinen Standort.
+        aegis = os.path.join(root, "DEBIAN", "_aegis")
+        if os.path.isfile(aegis):
+            with open(aegis, "rb") as fh:
+                f.write(ar_member("_aegis", fh.read()))
     os.replace(tmp, out)
 
     print("%s: %d B  (Nutzdaten %d B in %d Dateien, Installed-Size %d KiB)"
