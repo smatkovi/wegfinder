@@ -45,6 +45,7 @@ Bei 401/403 erneuert der Dienst einmal und wiederholt.
 | `route_request_url` einer Abfahrt (`routing/api/v1/stops?journey_id=…`) | Fahrtverlauf mit `current_station_index` und Linienzug |
 | `GET v7/radar?bbox=<lonW>,<latN>,<lonO>,<latS>&zoom=&filter=&location=<lon>,<lat>&map_width=&map_height=[&precision=]` | Umgebung: Gruppen mit `blips` (`station`, `partner`, `group`, `area_service`) |
 | `GET v2/filters` | Filter der Umgebung |
+| `offers_ref` einer Routenantwort (`v3/offers?ref=…&routes=…`) | Preise je Route: `{route_id, price: {amount (Cent), estimated}, messages, actions}`; anonym also Vollpreis, bei Taxi/Auto geschätzt |
 
 Zeiten kommen teils mit `+02:00`, teils in UTC (`+00:00`, Auto/Rad).
 Linienzüge sind Googles Encoded Polyline (5 Stellen).
@@ -65,8 +66,9 @@ Zeilenprotokoll über stdin/stdout:
 | `start` | – | `{version, plattform, einstellungen, wlan}` |
 | `netz` | – | `{wlan}` |
 | `suche` | `{text, lat?, lon?}` | `[Ort]` |
-| `routen` | `{von: Ort, nach: Ort, datum?, zeit?, ankunft?}` | `{gruppen, offen, start, ziel, meldungen}` |
+| `routen` | `{von: Ort, nach: Ort, datum?, zeit?, ankunft?}` | `{gruppen, offen, preise_url, start, ziel, meldungen}` |
 | `routen_url` | `{url}` | wie `routen` |
+| `preise` | `{url}` (die `preise_url` einer Routenantwort) | `{route_id: {text, cent, geschaetzt, hinweis, co2}}` |
 | `karte` | `{route: id, max?}` | `{linien: [{art, farbe, punkte: [[lat, lon]…]}], marker: [{lat, lon, name, rolle, farbe}], rahmen: {n, s, w, o}}` |
 | `abfahrten` | `{station, max?, neu?}` | `{abfahrten: [Abfahrt], gesamt, station, stand}` |
 | `fahrt` | `{url}` | `{halte, aktuell, meldungen, linie}` |

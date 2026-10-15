@@ -152,6 +152,16 @@ fn routen_url(k: &Kontext, w: &Value) -> Result<Value, String> {
     Ok(format::routen(&v))
 }
 
+/// Preise einer Routenantwort (deren preise_url, v3/offers).
+fn preise(k: &Kontext, w: &Value) -> Result<Value, String> {
+    let url = s(w, "url");
+    if !url.starts_with(imob::BASIS) || !url.contains("/offers") {
+        return Err("Ungültige Adresse".into());
+    }
+    let v = k.api(&url)?;
+    Ok(format::preise(&v))
+}
+
 fn punkte_json(p: &[(f64, f64)]) -> Value {
     Value::Array(p.iter().map(|(a, b)| json!([(a * 1e5).round() / 1e5, (b * 1e5).round() / 1e5])).collect())
 }
@@ -402,6 +412,7 @@ pub fn bearbeiten(k: &Kontext, befehl: &str, w: &Value) -> Result<Value, String>
         "routen" => routen(k, w),
         "routen_url" => routen_url(k, w),
         "karte" => karte(k, w),
+        "preise" => preise(k, w),
         "abfahrten" => abfahrten(k, w),
         "fahrt" => fahrt(k, w),
         "umgebung" => umgebung(k, w),

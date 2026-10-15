@@ -16,6 +16,9 @@ Page {
     property var offen: []
     property var meldungen: []
     property string fehler: ""
+    // Preise je Route (v3/offers), getrennt nachgeladen: {route_id: {text, hinweis, co2}}
+    property var preise: ({})
+    property var preisWarteschlange: []
 
     property real hKopf: Theme.itemSizeExtraSmall
     property real hKnopf: Theme.itemSizeMedium
@@ -27,6 +30,9 @@ Page {
         offen = []
         meldungen = []
         fehler = ""
+        preise = {}
+        preisWarteschlange = []
+        preisAnfrage.abbrechen()
         mehr.abbrechen()
         blaettern.abbrechen()
         var w = { von: von, nach: nach }
@@ -84,6 +90,28 @@ Page {
         return l
     }
 
+    function preiseHolen(url) {
+        if (!url || url === "")
+            return
+        var q = W.kopie(preisWarteschlange)
+        q.push(url)
+        preisWarteschlange = q
+        if (!preisAnfrage.laeuft)
+            naechsterPreis()
+    }
+    function naechsterPreis() {
+        if (preisWarteschlange.length === 0)
+            return
+        var q = W.kopie(preisWarteschlange)
+        var url = q.shift()
+        preisWarteschlange = q
+        preisAnfrage.senden("preise", { url: url })
+    }
+    function preisText(r) {
+        var p = r ? preise[r.id] : undefined
+        return p ? p.text : ""
+    }
+
     function naechsteOffene() {
         if (offen.length === 0)
             return
@@ -100,9 +128,21 @@ Page {
     }
 
     Anfrage {
+        id: preisAnfrage
+        onFertig: {
+            var m = W.kopie(seite.preise)
+            for (var k in daten)
+                m[k] = daten[k]
+            seite.preise = m
+            seite.naechsterPreis()
+        }
+        onFehler: seite.naechsterPreis()
+    }
+    Anfrage {
         id: haupt
         onFertig: {
             seite.einfuegen(daten, "")
+            seite.preiseHolen(daten.preise_url)
             seite.offen = daten.offen
             if (seite.gruppen.length === 0 && daten.offen.length === 0)
                 seite.fehler = daten.meldungen.length > 0 ? daten.meldungen[0].text : "Keine Verbindung gefunden."
@@ -113,7 +153,7 @@ Page {
     }
     Anfrage {
         id: mehr
-        onFertig: { seite.einfuegen(daten, ""); seite.naechsteOffene() }
+        onFertig: { seite.einfuegen(daten, ""); seite.preiseHolen(daten.preise_url); seite.naechsteOffene() }
         onFehler: { fenster.meldung(W.fehlerText(text)); seite.naechsteOffene() }
     }
     Anfrage {
@@ -124,6 +164,7 @@ Page {
             // erste Oeffi-Route oben halten, nach "Spaeter" bleibt alles stehen.
             var vorher = liste.contentY, erste = seite.ersteOeffiId()
             seite.einfuegen(daten, wo)
+            seite.preiseHolen(daten.preise_url)
             if (wo === "vorne" && erste !== "") {
                 var l = liste.model
                 for (var i = 0; i < l.length; ++i)
@@ -195,7 +236,8 @@ Page {
                 height: zeile.istRoute ? spalte.height + 2 * Theme.paddingMedium : 0
                 onClicked: {
                     fenster.letzteRoute = zeile.r
-                    pageStack.push(Qt.resolvedUrl("RoutenSeite.qml"), { route: zeile.r })
+                    pageStack.push(Qt.resolvedUrl("RoutenSeite.qml"),
+                                   { route: zeile.r, preis: seite.preise[zeile.r.id] ? seite.preise[zeile.r.id] : null })
                 }
 
                 Linie {
@@ -262,7 +304,8 @@ Page {
                         Label {
                             height: Theme.itemSizeExtraSmall * 0.55
                             verticalAlignment: Text.AlignVCenter
-                            text: zeile.oeffi ? (zeile.r.umstiege === 1 ? "1 Umstieg" : zeile.r.umstiege + " Umstiege") : ""
+                            text: zeile.oeffi ? (zeile.r.umstiege === 1 ? "1 Umstieg" : zeile.r.umstiege + " Umstiege")
+                                                + (seite.preisText(zeile.r) !== "" ? " · " + seite.preisText(zeile.r) : "") : ""
                             color: Theme.secondaryColor
                             font.pixelSize: Theme.fontSizeExtraSmall
                         }
@@ -280,6 +323,7 @@ Page {
                             else if (zeile.r.strecke !== "") t.push(zeile.r.strecke)
                             if (zeile.r.ab.zeit !== "") t.push("ab " + zeile.r.ab.zeit)
                             if (zeile.r.an.zeit !== "") t.push("an " + zeile.r.an.zeit)
+                            if (seite.preisText(zeile.r) !== "") t.push(seite.preisText(zeile.r))
                             return t.join(" · ")
                         }
                     }

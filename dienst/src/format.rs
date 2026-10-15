@@ -480,6 +480,8 @@ pub fn routen(v: &Value) -> Value {
     json!({
         "gruppen": gruppen,
         "offen": offen,
+        // Preise kommen getrennt (v3/offers), damit die Routen nicht auf sie warten
+        "preise_url": s(v, "offers_ref"),
         "start": v.get("start_location").map(ort).unwrap_or(Value::Null),
         "ziel": v.get("destination_location").map(ort).unwrap_or(Value::Null),
         "meldungen": meldungen(v.get("messages").unwrap_or(&Value::Null)),
@@ -678,6 +680,59 @@ pub fn umgebung(v: &Value) -> Value {
     json!({"punkte": punkte, "gruppen": gruppen})
 }
 
+/// Cent -> "66,40 €", geschaetzt -> "ca. 12 €"
+pub fn preis_text(cent: i64, geschaetzt: bool) -> String {
+    let euro = if geschaetzt && cent % 100 == 0 {
+        format!("{} €", cent / 100)
+    } else {
+        format!("{},{:02} €", cent / 100, (cent % 100).abs())
+    };
+    if geschaetzt { format!("ca. {}", euro) } else { euro }
+}
+
+/// v3/offers -> {route_id: {text, cent, geschaetzt, hinweis, co2}}. Preise
+/// sind Vollpreise ohne Ermaessigung (anonyme Sitzung, kein Profil).
+pub fn preise(v: &Value) -> Value {
+    let mut aus = Map::new();
+    for o in v.as_array().into_iter().flatten() {
+        let id = s(o, "route_id");
+        let p = match o.get("price") {
+            Some(p) if p.is_object() => p,
+            _ => continue,
+        };
+        let cent = match p.get("amount").and_then(|x| x.as_i64()) {
+            Some(c) => c,
+            None => continue,
+        };
+        let geschaetzt = p.get("estimated").and_then(|x| x.as_bool()).unwrap_or(false);
+        let mut hinweis = Vec::new();
+        texte(o.get("messages").unwrap_or(&Value::Null), &mut hinweis, 0);
+        let hinweis: Vec<String> = hinweis
+            .iter()
+            .map(|h| h["text"].as_str().unwrap_or("").to_string())
+            .filter(|t| !t.is_empty())
+            .collect();
+        // "Du sparst 642 g CO2 im Vergleich zum PKW" (Aktion ohne Wirkung)
+        let mut co2 = String::new();
+        for a in liste(o, "actions") {
+            if let Some(n) = a.get("noop") {
+                let t = s(n, "left_text");
+                if !t.is_empty() {
+                    co2 = t;
+                }
+            }
+        }
+        aus.insert(id, json!({
+            "text": preis_text(cent, geschaetzt),
+            "cent": cent,
+            "geschaetzt": geschaetzt,
+            "hinweis": hinweis.join(" "),
+            "co2": co2,
+        }));
+    }
+    Value::Object(aus)
+}
+
 pub fn filterliste(v: &Value) -> Value {
     let liste: Vec<Value> = v
         .as_array()
@@ -712,5 +767,8 @@ mod tests {
         assert_eq!(dauer_text(65), "1 h 5 min");
         assert_eq!(strecke_text(3456.0), "3,5 km");
         assert_eq!(strecke_text(184.0), "180 m");
+        assert_eq!(preis_text(6640, false), "66,40 €");
+        assert_eq!(preis_text(1200, true), "ca. 12 €");
+        assert_eq!(preis_text(300, false), "3,00 €");
     }
 }

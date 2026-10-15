@@ -9,6 +9,7 @@ import "../wf.js" as W
 Page {
     id: seite
     property var route: null
+    property var preis: null     // aus v3/offers, siehe ErgebnisSeite
 
     function abfahrten(h) {
         if (h && h.id && h.id !== "")
@@ -156,6 +157,25 @@ Page {
                 }
             }
 
+            SectionHeader { text: "Preis"; visible: !!seite.preis }
+            Label {
+                x: Theme.horizontalPageMargin
+                width: inhalt.width - 2 * Theme.horizontalPageMargin
+                visible: !!seite.preis
+                text: seite.preis ? seite.preis.text : ""
+                font.pixelSize: Theme.fontSizeLarge
+                color: Theme.highlightColor
+            }
+            Label {
+                x: Theme.horizontalPageMargin
+                width: inhalt.width - 2 * Theme.horizontalPageMargin
+                visible: !!seite.preis
+                wrapMode: Text.Wrap
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeSmall
+                text: seite.preis ? W.verbinden([seite.preis.geschaetzt ? "" : "Vollpreis ohne Ermäßigung.",
+                                                 seite.preis.hinweis, seite.preis.co2], " ") : ""
+            }
             SectionHeader { text: "Hinweise"; visible: !!seite.route && seite.route.meldungen.length > 0 }
             Repeater {
                 model: seite.route ? seite.route.meldungen : []

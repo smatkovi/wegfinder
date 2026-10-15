@@ -8,6 +8,7 @@ import "wf.js" as W
 Page {
     id: seite
     property variant route: null
+    property variant preis: null     // aus v3/offers, siehe ErgebnisSeite
 
     tools: ToolBarLayout {
         ToolIcon { iconId: "toolbar-back"; onClicked: pageStack.pop() }
@@ -156,6 +157,31 @@ Page {
             }
 
             Item { width: 1; height: 16 }
+            Ueberschrift {
+                x: 16
+                width: parent.width - 32
+                text: "Preis"
+                visible: !!seite.preis
+            }
+            Text {
+                x: 16
+                width: inhalt.width - 32
+                visible: !!seite.preis
+                wrapMode: Text.WordWrap
+                color: "white"
+                font.pixelSize: 26
+                text: seite.preis ? seite.preis.text : ""
+            }
+            Text {
+                x: 16
+                width: inhalt.width - 32
+                visible: !!seite.preis
+                wrapMode: Text.WordWrap
+                color: "#b3b3b3"
+                font.pixelSize: 20
+                text: seite.preis ? W.verbinden([seite.preis.geschaetzt ? "" : "Vollpreis ohne Ermäßigung.",
+                                                 seite.preis.hinweis, seite.preis.co2], " ") : ""
+            }
             Ueberschrift {
                 x: 16
                 width: parent.width - 32
