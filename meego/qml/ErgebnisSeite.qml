@@ -22,7 +22,7 @@ Page {
     // feste Hoehen: so bleibt die Liste beim Nachladen stehen
     property int hKopf: 56
     property int hKnopf: 76
-    property int hRoute: 124
+    property int hRoute: 134
     property alias liste: liste
 
     tools: ToolBarLayout {
@@ -263,7 +263,7 @@ Page {
                     id: marken
                     visible: zeile.oeffi
                     anchors { left: parent.left; leftMargin: 16; right: parent.right; rightMargin: 16 }
-                    y: 70
+                    y: 78
                     spacing: 6
                     clip: true
                     Repeater {
@@ -296,7 +296,7 @@ Page {
                 }
                 Text {
                     anchors { left: hauptText.left; right: parent.right; rightMargin: 16 }
-                    y: zeile.oeffi ? 100 : 86
+                    y: zeile.oeffi ? 110 : 88
                     elide: Text.ElideRight
                     color: "#8c8c8c"
                     font.pixelSize: 18

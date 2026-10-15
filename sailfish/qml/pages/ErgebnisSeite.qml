@@ -19,7 +19,6 @@ Page {
 
     property real hKopf: Theme.itemSizeExtraSmall
     property real hKnopf: Theme.itemSizeMedium
-    property real hRoute: Theme.itemSizeExtraLarge * 0.95
 
     Component.onCompleted: laden()
 
@@ -94,10 +93,10 @@ Page {
         mehr.senden("routen_url", { url: url })
     }
 
-    function oeffiAnzahl() {
+    function ersteOeffiId() {
         for (var i = 0; i < gruppen.length; ++i)
-            if (gruppen[i].schluessel === "oeffi") return gruppen[i].routen.length
-        return 0
+            if (gruppen[i].schluessel === "oeffi" && gruppen[i].routen.length > 0) return gruppen[i].routen[0].id
+        return ""
     }
 
     Anfrage {
@@ -121,9 +120,20 @@ Page {
         id: blaettern
         property string wo: ""
         onFertig: {
-            var vorher = liste.contentY, anzahl = seite.oeffiAnzahl()
+            // Die Eintraege sind verschieden hoch: nach "Frueher" die bisher
+            // erste Oeffi-Route oben halten, nach "Spaeter" bleibt alles stehen.
+            var vorher = liste.contentY, erste = seite.ersteOeffiId()
             seite.einfuegen(daten, wo)
-            liste.contentY = vorher + (wo === "vorne" ? (seite.oeffiAnzahl() - anzahl) * seite.hRoute : 0)
+            if (wo === "vorne" && erste !== "") {
+                var l = liste.model
+                for (var i = 0; i < l.length; ++i)
+                    if (l[i].typ === "route" && l[i].r.id === erste) {
+                        liste.positionViewAtIndex(Math.max(0, i - 1), ListView.Beginning)
+                        break
+                    }
+            } else {
+                liste.contentY = vorher
+            }
         }
         onFehler: fenster.meldung(W.fehlerText(text))
     }
@@ -158,7 +168,7 @@ Page {
             readonly property var r: istRoute ? modelData.r : null
             readonly property bool oeffi: istRoute && r.gruppe === "oeffi"
             width: liste.width
-            height: modelData.typ === "kopf" ? seite.hKopf : (modelData.typ === "knopf" ? seite.hKnopf : seite.hRoute)
+            height: modelData.typ === "kopf" ? seite.hKopf : (modelData.typ === "knopf" ? seite.hKnopf : knopf.height)
 
             SectionHeader {
                 visible: modelData.typ === "kopf"
@@ -175,10 +185,14 @@ Page {
                     blaettern.senden("routen_url", { url: modelData.url })
                 }
             }
+            // Eine Route: Spalte mit Zeiten (oder Titel), Verspaetung, Linien,
+            // Abfahrtsort -- die Hoehe ergibt sich aus dem Inhalt, damit bei
+            // grossen Schriften nichts uebereinander liegt.
             BackgroundItem {
                 id: knopf
                 visible: zeile.istRoute
-                anchors.fill: parent
+                width: parent.width
+                height: zeile.istRoute ? spalte.height + 2 * Theme.paddingMedium : 0
                 onClicked: {
                     fenster.letzteRoute = zeile.r
                     pageStack.push(Qt.resolvedUrl("RoutenSeite.qml"), { route: zeile.r })
@@ -188,93 +202,101 @@ Page {
                     id: sinn
                     visible: zeile.istRoute && !zeile.oeffi
                     x: Theme.horizontalPageMargin
-                    y: Theme.paddingLarge
+                    y: Theme.paddingMedium
                     groesse: Theme.iconSizeMedium
                     art: zeile.r ? zeile.r.art : "sonst"
                     farbe: zeile.r ? zeile.r.farbe : "#666666"
                 }
-                Label {
-                    id: hauptText
-                    anchors { left: zeile.oeffi ? parent.left : sinn.right; leftMargin: zeile.oeffi ? Theme.horizontalPageMargin : Theme.paddingMedium
-                              right: dauerText.left; rightMargin: Theme.paddingSmall }
+                Column {
+                    id: spalte
                     y: Theme.paddingMedium
-                    font.pixelSize: Theme.fontSizeLarge
-                    truncationMode: TruncationMode.Fade
-                    color: zeile.r && zeile.r.ausgefallen ? "#ff6666" : (knopf.highlighted ? Theme.highlightColor : Theme.primaryColor)
-                    text: {
-                        if (!zeile.r) return ""
-                        if (zeile.oeffi)
-                            return zeile.r.ab.zeit + " – " + zeile.r.an.zeit + (zeile.r.an.tag !== "" ? " (" + zeile.r.an.tag + ")" : "")
-                        return zeile.r.titel + (zeile.r.anbieter !== "" && zeile.r.anbieter !== zeile.r.titel ? " · " + zeile.r.anbieter : "")
-                    }
-                }
-                Label {
-                    id: dauerText
-                    anchors { right: parent.right; rightMargin: Theme.horizontalPageMargin; baseline: hauptText.baseline }
-                    text: zeile.r ? zeile.r.dauer : ""
-                    color: knopf.highlighted ? Theme.highlightColor : Theme.primaryColor
-                }
-                Label {
-                    anchors { left: hauptText.left; top: hauptText.bottom }
-                    visible: zeile.oeffi && text !== ""
-                    font.pixelSize: Theme.fontSizeExtraSmall
-                    text: {
-                        if (!zeile.r) return ""
-                        if (zeile.r.ausgefallen) return "Fällt aus"
-                        var f = zeile.r.erste_fahrt
-                        if (f && f.echtzeit && f.verspaetung > 0) return "ab " + f.live + " (+" + f.verspaetung + ")"
-                        if (f && f.echtzeit) return "pünktlich"
-                        return ""
-                    }
-                    color: zeile.r && (zeile.r.ausgefallen || (zeile.r.erste_fahrt && zeile.r.erste_fahrt.verspaetung > 0)) ? "#ff6666" : "#5cb85c"
-                }
-                Row {
-                    visible: zeile.oeffi
-                    anchors { left: parent.left; leftMargin: Theme.horizontalPageMargin; right: parent.right; rightMargin: Theme.horizontalPageMargin }
-                    y: hauptText.y + hauptText.height + Theme.paddingLarge
-                    spacing: Theme.paddingSmall
-                    clip: true
-                    Repeater {
-                        model: zeile.oeffi ? zeile.r.linien : []
-                        Linie { art: modelData.art; text: modelData.text; farbe: modelData.farbe }
+                    anchors { left: zeile.oeffi ? parent.left : sinn.right; leftMargin: zeile.oeffi ? Theme.horizontalPageMargin : Theme.paddingMedium
+                              right: parent.right; rightMargin: Theme.horizontalPageMargin }
+                    spacing: Theme.paddingSmall / 2
+
+                    Item {
+                        width: parent.width
+                        height: hauptText.height
+                        Label {
+                            id: hauptText
+                            anchors { left: parent.left; right: dauerText.left; rightMargin: Theme.paddingSmall }
+                            font.pixelSize: zeile.oeffi ? Theme.fontSizeLarge : Theme.fontSizeMedium
+                            truncationMode: TruncationMode.Fade
+                            color: zeile.r && zeile.r.ausgefallen ? "#ff6666" : (knopf.highlighted ? Theme.highlightColor : Theme.primaryColor)
+                            text: {
+                                if (!zeile.r) return ""
+                                if (zeile.oeffi)
+                                    return zeile.r.ab.zeit + " – " + zeile.r.an.zeit + (zeile.r.an.tag !== "" ? " (" + zeile.r.an.tag + ")" : "")
+                                return zeile.r.titel + (zeile.r.anbieter !== "" && zeile.r.anbieter !== zeile.r.titel ? " · " + zeile.r.anbieter : "")
+                            }
+                        }
+                        Label {
+                            id: dauerText
+                            anchors { right: parent.right; baseline: hauptText.baseline }
+                            text: zeile.r ? zeile.r.dauer : ""
+                            color: knopf.highlighted ? Theme.highlightColor : Theme.primaryColor
+                        }
                     }
                     Label {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: zeile.oeffi ? (zeile.r.umstiege === 1 ? "1 Umstieg" : zeile.r.umstiege + " Umstiege") : ""
+                        width: parent.width
+                        visible: zeile.oeffi && text !== ""
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        text: {
+                            if (!zeile.r) return ""
+                            if (zeile.r.ausgefallen) return "Fällt aus"
+                            var f = zeile.r.erste_fahrt
+                            if (f && f.echtzeit && f.verspaetung > 0) return "ab " + f.live + " (+" + f.verspaetung + ")"
+                            if (f && f.echtzeit) return "pünktlich"
+                            return ""
+                        }
+                        color: zeile.r && (zeile.r.ausgefallen || (zeile.r.erste_fahrt && zeile.r.erste_fahrt.verspaetung > 0)) ? "#ff6666" : "#5cb85c"
+                    }
+                    Flow {
+                        visible: zeile.oeffi
+                        width: parent.width
+                        spacing: Theme.paddingSmall
+                        Repeater {
+                            model: zeile.oeffi ? zeile.r.linien : []
+                            Linie { art: modelData.art; text: modelData.text; farbe: modelData.farbe }
+                        }
+                        Label {
+                            height: Theme.itemSizeExtraSmall * 0.55
+                            verticalAlignment: Text.AlignVCenter
+                            text: zeile.oeffi ? (zeile.r.umstiege === 1 ? "1 Umstieg" : zeile.r.umstiege + " Umstiege") : ""
+                            color: Theme.secondaryColor
+                            font.pixelSize: Theme.fontSizeExtraSmall
+                        }
+                    }
+                    Label {
+                        visible: !zeile.oeffi && text !== ""
+                        width: parent.width
+                        truncationMode: TruncationMode.Fade
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                        text: {
+                            if (!zeile.r || zeile.oeffi) return ""
+                            var t = []
+                            if (zeile.r.untertitel !== "") t.push(zeile.r.untertitel)
+                            else if (zeile.r.strecke !== "") t.push(zeile.r.strecke)
+                            if (zeile.r.ab.zeit !== "") t.push("ab " + zeile.r.ab.zeit)
+                            if (zeile.r.an.zeit !== "") t.push("an " + zeile.r.an.zeit)
+                            return t.join(" · ")
+                        }
+                    }
+                    Label {
+                        width: parent.width
+                        visible: text !== ""
+                        truncationMode: TruncationMode.Fade
                         color: Theme.secondaryColor
                         font.pixelSize: Theme.fontSizeExtraSmall
-                    }
-                }
-                Label {
-                    visible: !zeile.oeffi
-                    anchors { left: hauptText.left; right: parent.right; rightMargin: Theme.horizontalPageMargin; top: hauptText.bottom }
-                    truncationMode: TruncationMode.Fade
-                    color: Theme.secondaryColor
-                    font.pixelSize: Theme.fontSizeSmall
-                    text: {
-                        if (!zeile.r || zeile.oeffi) return ""
-                        var t = []
-                        if (zeile.r.untertitel !== "") t.push(zeile.r.untertitel)
-                        else if (zeile.r.strecke !== "") t.push(zeile.r.strecke)
-                        if (zeile.r.ab.zeit !== "") t.push("ab " + zeile.r.ab.zeit)
-                        if (zeile.r.an.zeit !== "") t.push("an " + zeile.r.an.zeit)
-                        return t.join(" · ")
-                    }
-                }
-                Label {
-                    anchors { left: parent.left; leftMargin: Theme.horizontalPageMargin; right: parent.right; rightMargin: Theme.horizontalPageMargin
-                              bottom: parent.bottom; bottomMargin: Theme.paddingSmall }
-                    truncationMode: TruncationMode.Fade
-                    color: Theme.secondaryColor
-                    font.pixelSize: Theme.fontSizeExtraSmall
-                    visible: text !== ""
-                    text: {
-                        if (!zeile.r) return ""
-                        if (zeile.oeffi) {
-                            var f = zeile.r.erste_fahrt
-                            return f ? "ab " + f.name + (f.gleis !== "" ? ", Gleis/Steig " + f.gleis : "") : ""
+                        text: {
+                            if (!zeile.r) return ""
+                            if (zeile.oeffi) {
+                                var f = zeile.r.erste_fahrt
+                                return f ? "ab " + f.name + (f.gleis !== "" ? ", Gleis/Steig " + f.gleis : "") : ""
+                            }
+                            return zeile.r.meldungen.length > 0 ? zeile.r.meldungen[0].text : ""
                         }
-                        return zeile.r.meldungen.length > 0 ? zeile.r.meldungen[0].text : ""
                     }
                 }
             }
