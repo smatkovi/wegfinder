@@ -125,8 +125,10 @@ Sailfish mit `mb2` in der Platform-SDK-Chroot gegen SailfishOS 5.1.0.11.
 
 ## Installieren
 
-* **N9/N950:** `dpkg -i wegfinder_0.1.0_armel.deb` (als root bzw. `devel-su`).
-* **Sailfish (ab 5.0):** `devel-su pkcon install-local wegfinder-0.1.0-1.aarch64.rpm`
+* **N9/N950:** `aegis-dpkg -i wegfinder_0.1.1_armel.deb` (als root bzw. `devel-su`).
+  Mit `aegis-dpkg`, nicht `dpkg`: nur dann bekommt die App die Berechtigung
+  „Location“ für den Standort (das Paket trägt Aegis-Manifest und digsigsums).
+* **Sailfish (ab 5.0):** `devel-su pkcon install-local wegfinder-0.1.1-1.aarch64.rpm`
   (bzw. armv7hl). Gebaut gegen SailfishOS 5.1.0.11.
 
 Ablage am N9: `~/.config/wegfinder` (Sitzung, Einstellungen), `~/.local/share/wegfinder`

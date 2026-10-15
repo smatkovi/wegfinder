@@ -206,6 +206,18 @@ def main(argv):
         ("control", False, 0o644, ctl.encode("utf-8")),
         ("md5sums", False, 0o644, "".join(md5lines).encode("utf-8")),
     ]
+    # Mit Aegis-Manifest: digsigsums wie aegis-deb-add -- je ausfuehrbarer
+    # Datei "S <n> <Quelle> H 40 <sha1> R <n> <pfad>". Erst damit verknuepft
+    # aegis die angeforderten Berechtigungen mit dem Programm ("Object:" in
+    # restok.conf); ohne bekam die App am N950 keinen Standort.
+    if os.path.isfile(os.path.join(root, "DEBIAN", "_aegis")):
+        quelle = "com.nokia.maemo"
+        dig = []
+        for name, is_dir, mode, blob in data_entries:
+            if not is_dir and mode & 0o111:
+                dig.append("S %d %s H 40 %s R %d %s\n" % (len(quelle), quelle, hashlib.sha1(blob).hexdigest(),
+                                                           len(name), name))
+        ctl_entries.append(("digsigsums", False, 0o644, "".join(dig).encode("utf-8")))
     for extra in ("preinst", "postinst", "prerm", "postrm"):
         p = os.path.join(root, "DEBIAN", extra)
         if os.path.isfile(p):

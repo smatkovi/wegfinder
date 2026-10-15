@@ -11,5 +11,6 @@ Description: wegfinder fuer das N9 und N950 (inoffiziell)
  Sparsam im 2G-Netz. Ohne Buchen und Bezahlen.
  Inoffizieller Client, nicht von der iMobility GmbH.
 Maemo-Display-Name: wegfinder
+Aegis-Manifest: included
 XB-Maemo-Icon-26:
 @ICON@
