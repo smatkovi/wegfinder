@@ -15,3 +15,4 @@ sailfish/.qmake.stash
 sailfish/wegfinder
 sailfish/*.o
 sailfish/moc_*
+sailfish/documentation.list
