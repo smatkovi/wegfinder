@@ -6,9 +6,13 @@ Exec=wegfinder
 Name=wegfinder
 Comment=Routen, Abfahrten und Verkehrsmittel in der Nähe (inoffiziell)
 
-# Kein Sandkasten: die App startet den Netzdienst als Kindprozess, der unter
-# ~/.config/wegfinder, ~/.cache/wegfinder und ~/.local/share/wegfinder ablegt
-# und die Kartenkacheln ueber 127.0.0.1 ausliefert; Pure Maps wird ueber den
-# Sitzungsbus angesprochen.
+# Im Sandkasten: Internet (auch der Kachelserver des Netzdienstes auf
+# 127.0.0.1), Standort ("Mein Standort", In der Naehe), Downloads (Fussweg
+# als GPX fuer Pure Maps). Der Netzdienst laeuft als Kindprozess mit im
+# Sandkasten und legt unter ~/.config|.cache|.local/share/org.smatkovi/wegfinder
+# ab. Pure Maps ist ueber D-Bus aus dem Sandkasten nicht erreichbar; dann
+# gilt der Rueckfall wie in Fahrplan AT (GPX und geo:-Adresse).
 [X-Sailjail]
-Sandboxing=Disabled
+Permissions=Internet;Location;Downloads
+OrganizationName=org.smatkovi
+ApplicationName=wegfinder

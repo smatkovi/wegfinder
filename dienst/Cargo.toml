@@ -1,6 +1,6 @@
 [package]
 name = "wf-dienst"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # Die Netzseite von wegfinder fuer MeeGo Harmattan und Sailfish OS: liest

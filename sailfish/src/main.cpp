@@ -18,8 +18,12 @@
 int main(int argc, char *argv[])
 {
     QScopedPointer<QGuiApplication> app(SailfishApp::application(argc, argv));
-    app->setOrganizationName(QStringLiteral("wegfinder"));
+    // Wie in [X-Sailjail] der .desktop-Datei: nur unter
+    // ~/.config|.cache|.local/share/org.smatkovi/wegfinder darf die App im
+    // Sandkasten schreiben. Der Netzdienst erbt den Ordner ueber WF_ORDNER.
+    app->setOrganizationName(QStringLiteral("org.smatkovi"));
     app->setApplicationName(QStringLiteral("wegfinder"));
+    qputenv("WF_ORDNER", "org.smatkovi/wegfinder");
     app->setApplicationVersion(QStringLiteral(APP_VERSION));
 
     Dienst dienst(QStringLiteral(NETZDIENST));

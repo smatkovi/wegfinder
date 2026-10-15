@@ -119,8 +119,10 @@ Sailfish mit `mb2` in der Platform-SDK-Chroot gegen SailfishOS 5.1.0.11.
 * **Sailfish (ab 5.0):** `devel-su pkcon install-local wegfinder-0.1.0-1.aarch64.rpm`
   (bzw. armv7hl). Gebaut gegen SailfishOS 5.1.0.11.
 
-Ablage: `~/.config/wegfinder` (Sitzung, Einstellungen), `~/.local/share/wegfinder`
-(Favoriten, Verlauf), `~/.cache/wegfinder` (Kacheln, Protokoll `dienst.log`).
+Ablage am N9: `~/.config/wegfinder` (Sitzung, Einstellungen), `~/.local/share/wegfinder`
+(Favoriten, Verlauf), `~/.cache/wegfinder` (Kacheln, Protokoll `dienst.log`). Unter
+Sailfish läuft die App im Sailjail-Sandkasten (Berechtigungen Internet, Standort,
+Downloads) und legt dasselbe unter `…/org.smatkovi/wegfinder` ab.
 
 ## Lizenz
 

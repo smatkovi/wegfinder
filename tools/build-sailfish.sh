@@ -28,7 +28,9 @@ for arch in $ARCHS; do
     # In-place-Bau: die Makefiles des vorigen Ziels zeigen auf dessen qmake.
     ( cd sailfish && rm -rf Makefile* .qmake.stash *.o moc_* wegfinder installroot RPMS )
     echo "== mb2 $ZIEL-$arch"
-    "$SDK" bash -c "cd '$WURZEL/sailfish' && mb2 -t '$ZIEL-$arch' build" > "build/mb2-$arch.log" 2>&1 || {
+    # --no-fix-version: sonst setzt mb2 in einer Git-Arbeitskopie eine Version
+    # aus "git describe" ein (0.1.0+main.<datum>.<hash>) statt der aus der spec.
+    "$SDK" bash -c "cd '$WURZEL/sailfish' && mb2 --no-fix-version -t '$ZIEL-$arch' build" > "build/mb2-$arch.log" 2>&1 || {
         tail -30 "build/mb2-$arch.log" >&2
         echo "== mb2 fuer $arch gescheitert, Protokoll: build/mb2-$arch.log" >&2
         exit 1

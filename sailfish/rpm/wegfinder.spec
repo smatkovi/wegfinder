@@ -1,7 +1,7 @@
 Name:       wegfinder
 
 Summary:    wegfinder: Routen, Abfahrten, Verkehrsmittel in der Nähe (inoffiziell)
-Version:    0.1.0
+Version:    0.1.1
 Release:    1
 License:    GPLv3
 URL:        https://github.com/smatkovi/wegfinder
@@ -46,6 +46,10 @@ desktop-file-install --delete-original \
 /usr/libexec/wegfinder
 
 %changelog
+* Thu Oct 15 2026 Sebastian Matkovich <sebastian.matkovich@gmail.com> - 0.1.1-1
+- Sailfish: im Sailjail-Sandkasten (Internet, Standort, Downloads) statt
+  ohne; Daten unter org.smatkovi/wegfinder.
+
 * Thu Oct 15 2026 Sebastian Matkovich <sebastian.matkovich@gmail.com> - 0.1.0-1
 - Erste Fassung: Routen (Öffis, Rad, Auto, Sharing, Taxi), Abfahrten mit
   Echtzeit, Fahrtverlauf, Verkehrsmittel in der Nähe, eigene Karte mit

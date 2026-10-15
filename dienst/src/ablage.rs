@@ -1,9 +1,11 @@
-//! Wo der Dienst Dinge ablegt.
+//! Wo der Dienst Dinge ablegt (<ordner>: "wegfinder" am N9, unter Sailfish
+//! "org.smatkovi/wegfinder" -- nur dorthin darf die App im Sailjail-
+//! Sandkasten schreiben; die Oberflaeche setzt WF_ORDNER).
 //!
-//!   ~/.config/wegfinder/        Sitzung beim Server (0600), Einstellungen
-//!   ~/.local/share/wegfinder/   Favoriten und zuletzt gesuchte Orte
-//!   ~/.cache/wegfinder/         Kartenkacheln, Filterliste, Protokoll --
-//!                               darf verschwinden
+//!   ~/.config/<ordner>/        Sitzung beim Server (0600), Einstellungen
+//!   ~/.local/share/<ordner>/   Favoriten und zuletzt gesuchte Orte
+//!   ~/.cache/<ordner>/         Kartenkacheln, Filterliste, Protokoll --
+//!                              darf verschwinden
 //!
 //! Geschrieben wird immer erst in eine Nebendatei und dann umbenannt: ein
 //! leerer Akku mitten im Schreiben darf keine halbe Datei hinterlassen.
@@ -17,6 +19,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 const NAME: &str = "wegfinder";
 
+/// Unterordner aus WF_ORDNER ("org.smatkovi/wegfinder"), sonst NAME. Nur
+/// schlichte Namen, kein "..".
+fn ordner() -> String {
+    match std::env::var("WF_ORDNER") {
+        Ok(o) if !o.is_empty()
+            && o.split('/').all(|t| !t.is_empty() && t != ".." && t != "."
+                && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')) => o,
+        _ => NAME.to_string(),
+    }
+}
+
 pub struct Ablage {
     pub konfig: PathBuf,
     pub cache: PathBuf,
@@ -27,10 +40,11 @@ impl Ablage {
     pub fn neu() -> Ablage {
         let heim = std::env::var("HOME").unwrap_or_else(|_| "/home/user".into());
         let heim = Path::new(&heim);
+        let o = ordner();
         let a = Ablage {
-            konfig: heim.join(".config").join(NAME),
-            cache: heim.join(".cache").join(NAME),
-            daten: heim.join(".local/share").join(NAME),
+            konfig: heim.join(".config").join(&o),
+            cache: heim.join(".cache").join(&o),
+            daten: heim.join(".local/share").join(&o),
         };
         for d in [&a.konfig, &a.cache, &a.daten] {
             let _ = fs::create_dir_all(d);

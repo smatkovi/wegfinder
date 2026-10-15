@@ -7,7 +7,7 @@ CONFIG += sailfishapp c++11
 QT += dbus
 
 isEmpty(VERSION) {
-    VERSION = 0.1.0
+    VERSION = 0.1.1
 }
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 DEFINES += NETZDIENST=\\\"/usr/libexec/wegfinder/wf-dienst\\\"
