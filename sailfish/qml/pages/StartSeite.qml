@@ -82,6 +82,8 @@ Page {
         PullDownMenu {
             MenuItem { text: "Über wegfinder"; onClicked: pageStack.push(Qt.resolvedUrl("InfoSeite.qml")) }
             MenuItem { text: "Einstellungen"; onClicked: pageStack.push(Qt.resolvedUrl("EinstellungenSeite.qml")) }
+            MenuItem { text: "Konto"; onClicked: pageStack.push(Qt.resolvedUrl("KontoSeite.qml")) }
+            MenuItem { text: "Meine Tickets"; onClicked: pageStack.push(Qt.resolvedUrl("TicketsSeite.qml")) }
             MenuItem { text: "In der Nähe"; onClicked: pageStack.push(Qt.resolvedUrl("UmgebungSeite.qml")) }
             MenuItem { text: "Route suchen"; onClicked: seite.suchen() }
         }

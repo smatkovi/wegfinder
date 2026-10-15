@@ -50,9 +50,62 @@ Bei 401/403 erneuert der Dienst einmal und wiederholt.
 Zeiten kommen teils mit `+02:00`, teils in UTC (`+00:00`, Auto/Rad).
 Linienzüge sind Googles Encoded Polyline (5 Stellen).
 
-Nicht benutzt (Buchen, Bezahlen, Konto): `v1/reservation`, `v4/tickets`,
-`v2/payment_options`, `v1/memberships`, `v2/shop`, `v3/flow`,
-`v3/rental`, `v1/promotions`, `v1/discounts`, `v2/login`, …
+### Konto (nur Sailfish, zum Ticketkauf)
+
+* Anmelden: `POST v2/login` `{email, password, device, client_id, client_secret}`
+  mit dem Client der anonymen Sitzung -> Token. Erneuern wie oben.
+* Konto anlegen: `POST v2/register` `{email, password, client_id, client_secret}`
+  mit dem anonymen Token -- die anonyme Sitzung wird zum Konto.
+* `GET user/api/v1/me` -> `{data: {email, first_name, last_name, account_type,
+  email_pending_validation, …}}`; `PATCH user/api/v1/me` für Name/E-Mail.
+* E-Mail bestätigen: `POST user/api/v1/me/validate-confirmation {code}`,
+  erneut senden: `POST user/api/v1/me/request-confirmation {email, revalidate: true}`.
+* Abmelden: `POST v1/revoke` (Formular `token=<refresh>&client_id=android`).
+
+### Ticketkauf (`v3/flow`)
+
+* Startdaten: `actions[].flow.data` eines Angebots aus `v3/offers`.
+* `POST v3/flow` -> 303 auf `/v3/flow/<id>`. Ein Flow hat genau einen
+  Bildschirm: `summary`, `pending`, `success`, `error` (u. a.).
+* `summary`: `item.offers[]` (id, name, price, selected, features),
+  `prerequisites` (registration, email, verify_email, name, payment, discounts,
+  push_notifications -- die letzten zwei überspringt die App), `payment.primary`,
+  `passengers.default.people[]`, `confirmation{}`, `email`, `next_step`,
+  `next_step_enabled`, `launch_data`.
+* Jede Änderung: ganzen Flow an `POST v3/flow/{id}` (409: `GET v3/flow/{id}`).
+  Angebot: `offers[*].selected`; Zahlungsmittel: `payment.primary = {id, type,
+  brand, title, …}`; Name: `PATCH user/api/v1/me` und Reisende/r `id == "me"`.
+* Buchen: ganzen Flow an `POST v3/flow/{id}/continue` -> `pending`, alle 2 s
+  `GET v3/flow/{id}` bis `success {ticket_id, …}` oder `error`.
+  `next_step_enabled` ist auch bei offenen Voraussetzungen `true`; gebucht
+  wird erst, wenn keine mehr offen sind.
+* Verwerfen: `DELETE v3/flow/{id}`.
+
+### Zahlungsmittel
+
+* `POST v2/payment_options {source: "profile"|"flow/<id>", set_default,
+  set_fallback, payment_type: "credit_card"|"paypal"}` -> Kopf `Location`;
+  bei Karten `credit_card.api_key`, bei PayPal `approve_url`.
+* Karte: `POST https://mpay24.com/app/bin/tokenizer/api/v1/cc`, Kopf `Api-Key`,
+  `{brand: VISA|MASTERCARD|UNKNOWN, identifier: <Kartennummer>, expiry: JJMM, cvc}`
+  -> `{brand, identifier, expiry, redirect?: {title, initial, final}}`, dann
+  `PATCH <Location> {"credit_card": <Antwort>}`. Mit `redirect.initial`:
+  3-D Secure im Browser, `GET v2/payment_options/{id}` alle 5 s bis
+  `initialized && !verification_failed`.
+* PayPal: `approve_url` im Browser, dann `PATCH v2/payment_options/{id}
+  {"payment_type": "paypal"}` und abfragen.
+* `GET v2/payment_options`, `PATCH …/{id} {"default": true}`, `DELETE …/{id}`.
+
+### Tickets
+
+* `GET v4/tickets` -> `{payment_options, tickets: [{id, type, status, name,
+  validity {from, to}, state, price, pdf_url, booking_details_url, fields, …}]}`.
+* Barcode: `GET <booking_details_url>` -> `partner|aggregator|group` ->
+  `ticket_preview.groups[].tickets[]` mit `barcode` = fertiges Bild (Base64),
+  `title`, `validity`, `expired`, `cancelled`. Token nur für api.i-mobility.at.
+
+Nicht benutzt: `v1/reservation`, `v1/memberships`, `v2/shop`, `v3/rental`,
+`v1/promotions`, `v1/discounts`, Google Pay, …
 
 ## Dienst: wf-dienst
 
@@ -77,6 +130,14 @@ Zeilenprotokoll über stdin/stdout:
 | `orte`, `ort_merken`, `ort_entfernen`, `verbindung_merken`, `verlauf_leeren` | `{ort, favorit?, bezeichnung?}` / `{von, nach}` | `{favoriten, verlauf, verbindungen}` |
 | `einstellungen`, `einstellungen_setzen` | `{weitere_laden, karte_mobil, abfahrten_max, umgebung_filter}` | Einstellungen |
 | `kacheln` | – | `{port}` des Kachelservers (`GET /<z>/<x>/<y>.png`) |
+| `konto`, `anmelden`, `registrieren`, `abmelden`, `email_code`, `email_code_senden` | `{email, kennwort}` / `{code}` | `{angemeldet, email, vorname, nachname, email_offen}` |
+| `kauf_start` | `{daten}` (aus `preise`: `kauf`) | Ansicht `{id, bildschirm, summary|pending|success|error}` |
+| `kauf_angebot`, `kauf_zahlung`, `kauf_name`, `kauf_bestaetigen`, `kauf_abgleichen`, `kauf_neu_starten`, `kauf_laden`, `kauf_stand`, `kauf_wiederholen`, `kauf_abbrechen` | `{id, …}` | Ansicht |
+| `kauf_buchen` | `{id, bestaetigt: true, preis}` | Ansicht (bucht kostenpflichtig; nur ohne offene Voraussetzungen und mit unverändertem Preis) |
+| `zahlungsmittel`, `zahlungsmittel_status`, `zahlungsmittel_standard`, `zahlungsmittel_loeschen` | `{id}` | Liste bzw. Zahlungsmittel |
+| `karte_anlegen` | `{nummer, ablauf, cvc, quelle?}` | Zahlungsmittel (mit `redirect` für 3-D Secure) |
+| `paypal_anlegen`, `paypal_fertig` | `{quelle?}` / `{id}` | Zahlungsmittel (mit `freigabe`) |
+| `tickets`, `ticket`, `ticket_pdf` | – / `{id}` | Liste; Details mit Barcode-Bilddateien; PDF in ~/Downloads |
 | `speicher`, `kacheln_leeren` | – | `{kacheln, text}` |
 
 **Ort**: `{id, name, unter, typ (station|street|address|poi|standort|koordinate), lat, lon, arten}`

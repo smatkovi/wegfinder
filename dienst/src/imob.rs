@@ -21,6 +21,14 @@ use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
 pub const BASIS: &str = "https://api.i-mobility.at/";
+
+/// Antworten dieser Aufrufe tragen Persoenliches (Name, E-Mail, Karte,
+/// Tickets): ins Protokoll kommt nur Status und Groesse.
+fn persoenlich(url: &str) -> bool {
+    ["payment_options", "v3/flow", "v4/tickets", "v2/login", "v2/token", "v2/register", "user/api", "booking"]
+        .iter()
+        .any(|k| url.contains(k))
+}
 /// Die App-Fassung, deren Schnittstelle dieser Client spricht. Der Server
 /// prueft den Namen vor dem Schraegstrich ("wegfinder"), anderes lehnt er
 /// mit 418 ab.
@@ -34,6 +42,8 @@ struct Sitzung {
     zugang: String,
     erneuern: String,
     ablauf: i64,
+    /// E-Mail des angemeldeten Kontos; leer = anonym
+    konto: String,
 }
 
 impl Sitzung {
@@ -46,13 +56,14 @@ impl Sitzung {
             zugang: s("zugang"),
             erneuern: s("erneuern"),
             ablauf: v.get("ablauf").and_then(|x| x.as_i64()).unwrap_or(0),
+            konto: s("konto"),
         }
     }
     fn json(&self) -> Value {
         json!({
             "client_id": self.client_id, "client_secret": self.client_secret,
             "geraet": self.geraet, "zugang": self.zugang,
-            "erneuern": self.erneuern, "ablauf": self.ablauf,
+            "erneuern": self.erneuern, "ablauf": self.ablauf, "konto": self.konto,
         })
     }
 }
@@ -222,9 +233,15 @@ impl Imob {
             return Ok(s.zugang.clone());
         }
         let mut neu = s.clone();
-        let ok = self.erneuern(&mut neu) || self.registrieren(&mut neu)? || {
-            self.client_anlegen(&mut neu)?;
-            self.registrieren(&mut neu)?
+        let ok = if self.erneuern(&mut neu) {
+            true
+        } else {
+            // Erneuern gescheitert: anonym neu -- ein Konto ist damit abgemeldet.
+            neu.konto.clear();
+            self.registrieren(&mut neu)? || {
+                self.client_anlegen(&mut neu)?;
+                self.registrieren(&mut neu)?
+            }
         };
         if !ok {
             return Err("Anmeldung beim wegfinder-Server gescheitert.".into());
@@ -234,10 +251,83 @@ impl Imob {
         Ok(s.zugang.clone())
     }
 
-    /// GET/POST gegen die Schnittstelle. `pfad` ist relativ zu BASIS oder
-    /// eine volle Adresse, die der Server selbst geliefert hat (Blaettern,
-    /// weitere Verkehrsmittel) -- dann aber nur auf demselben Server.
-    pub fn api(&self, ablage: &Ablage, methode: &str, pfad: &str) -> Result<Value, String> {
+    /// E-Mail des angemeldeten Kontos (leer: anonym).
+    pub fn konto(&self) -> String {
+        self.sitzung.lock().unwrap_or_else(|e| e.into_inner()).konto.clone()
+    }
+
+    /// Token sofort als abgelaufen behandeln (nach E-Mail-Bestaetigung).
+    pub fn token_veraltet(&self) {
+        self.sitzung.lock().unwrap_or_else(|e| e.into_inner()).ablauf = 0;
+    }
+
+    /// Mit E-Mail und Kennwort anmelden (POST v2/login, mit dem Client der
+    /// anonymen Sitzung). Das Kennwort wird nirgends gespeichert.
+    pub fn anmelden(&self, ablage: &Ablage, email: &str, kennwort: &str) -> Result<(), String> {
+        self.token(ablage, false)?; // sorgt fuer client_id/secret
+        let mut s = self.sitzung.lock().unwrap_or_else(|e| e.into_inner());
+        let rumpf = json!({"email": email, "password": kennwort, "device": s.geraet,
+                           "client_id": s.client_id, "client_secret": s.client_secret});
+        let a = self.netz.senden("POST", &format!("{}v2/login", BASIS), &self.kopf(), Rumpf::Json(&rumpf), true)?;
+        let v = a.json().unwrap_or(Value::Null);
+        if a.status >= 300 {
+            return Err(match a.status {
+                400 | 401 | 403 => "E-Mail oder Kennwort stimmt nicht.".to_string(),
+                _ => serverfehler(a.status, &v),
+            });
+        }
+        let mut neu = s.clone();
+        if !Self::token_uebernehmen(&mut neu, &v) {
+            return Err("Der Server hat kein Token geliefert.".into());
+        }
+        neu.konto = email.to_string();
+        self.sichern(ablage, &neu);
+        *s = neu;
+        Ok(())
+    }
+
+    /// Neues Konto: die anonyme Sitzung wird zum Konto (POST v2/register mit
+    /// dem anonymen Token); ein laufender Kauf bleibt gueltig.
+    pub fn konto_anlegen(&self, ablage: &Ablage, email: &str, kennwort: &str) -> Result<(), String> {
+        let token = self.token(ablage, false)?;
+        let mut s = self.sitzung.lock().unwrap_or_else(|e| e.into_inner());
+        let rumpf = json!({"email": email, "password": kennwort,
+                           "client_id": s.client_id, "client_secret": s.client_secret});
+        let mut kopf = self.kopf();
+        kopf.push(("Authorization".into(), format!("Bearer {}", token)));
+        let a = self.netz.senden("POST", &format!("{}v2/register", BASIS), &kopf, Rumpf::Json(&rumpf), true)?;
+        let v = a.json().unwrap_or(Value::Null);
+        if a.status >= 300 {
+            return Err(serverfehler(a.status, &v));
+        }
+        let mut neu = s.clone();
+        if !Self::token_uebernehmen(&mut neu, &v) {
+            return Err("Der Server hat kein Token geliefert.".into());
+        }
+        neu.konto = email.to_string();
+        self.sichern(ablage, &neu);
+        *s = neu;
+        Ok(())
+    }
+
+    /// Abmelden: Token beim Server zurueckziehen (POST v1/revoke, wie die App
+    /// mit client_id "android") und die Sitzung ganz vergessen -- der naechste
+    /// Aufruf legt wieder eine anonyme an.
+    pub fn abmelden(&self, ablage: &Ablage) {
+        let mut s = self.sitzung.lock().unwrap_or_else(|e| e.into_inner());
+        if !s.erneuern.is_empty() {
+            let form = format!("token={}&client_id=android", enc(&s.erneuern));
+            let _ = self.netz.senden("POST", &format!("{}v1/revoke", BASIS), &self.kopf(), Rumpf::Form(form), true);
+        }
+        let neu = Sitzung { geraet: s.geraet.clone(), ..Default::default() };
+        self.sichern(ablage, &neu);
+        *s = neu;
+    }
+
+    /// Anfrage mit Anmeldung, ohne Weiterleitung zu folgen: (Status, JSON,
+    /// Location). Fuer POST v2/payment_options, dessen Location gebraucht wird.
+    pub fn api_roh(&self, ablage: &Ablage, methode: &str, pfad: &str, rumpf: Option<&Value>)
+        -> Result<(u16, Value, Option<String>), String> {
         let url = if pfad.starts_with("https://") {
             if !pfad.starts_with(BASIS) {
                 return Err("Fremde Adresse abgelehnt.".into());
@@ -251,10 +341,86 @@ impl Imob {
             let token = self.token(ablage, versuch > 0)?;
             let mut kopf = self.kopf();
             kopf.push(("Authorization".into(), format!("Bearer {}", token)));
-            let a = self.netz.senden(methode, &url, &kopf, Rumpf::Keiner, false)?;
+            let r = match rumpf {
+                Some(j) => Rumpf::Json(j),
+                None => Rumpf::Keiner,
+            };
+            let a = self.netz.senden(methode, &url, &kopf, r, persoenlich(&url))?;
             if (a.status == 401 || a.status == 403) && versuch == 0 {
                 versuch += 1;
                 continue;
+            }
+            return Ok((a.status, a.json().unwrap_or(Value::Null), a.ort));
+        }
+    }
+
+    /// GET auf eine Adresse ausserhalb von BASIS, die der Server geliefert
+    /// hat (Buchungsdetails): mit den x-imob-Koepfen, ohne Token -- wie die
+    /// App, die das Token nur dem eigenen Rechner schickt.
+    pub fn ohne_anmeldung(&self, url: &str) -> Result<Value, String> {
+        let a = self.netz.senden("GET", url, &self.kopf(), Rumpf::Keiner, true)?;
+        let v = a.json().unwrap_or(Value::Null);
+        if a.status >= 300 {
+            return Err(serverfehler(a.status, &v));
+        }
+        Ok(v)
+    }
+
+    /// Datei (PDF) holen; auf dem API-Rechner mit Token.
+    pub fn roh(&self, ablage: &Ablage, url: &str) -> Result<Vec<u8>, String> {
+        let mut kopf = self.kopf();
+        if url.starts_with(BASIS) {
+            let token = self.token(ablage, false)?;
+            kopf.push(("Authorization".into(), format!("Bearer {}", token)));
+        } else if !url.starts_with("https://") {
+            return Err("Ungültige Adresse".into());
+        }
+        let (status, b) = self.netz.holen_roh_mit(url, &kopf)?;
+        if status >= 300 {
+            return Err(format!("Download gescheitert (HTTP {})", status));
+        }
+        Ok(b)
+    }
+
+    /// GET/POST gegen die Schnittstelle. `pfad` ist relativ zu BASIS oder
+    /// eine volle Adresse, die der Server selbst geliefert hat (Blaettern,
+    /// weitere Verkehrsmittel) -- dann aber nur auf demselben Server.
+    pub fn api(&self, ablage: &Ablage, methode: &str, pfad: &str) -> Result<Value, String> {
+        self.api_mit(ablage, methode, pfad, None)
+    }
+
+    /// Wie api(), mit JSON-Rumpf. Eine 303-Antwort (POST v3/flow legt den
+    /// Kauf an und verweist auf /v3/flow/<id>) wird mit GET verfolgt.
+    pub fn api_mit(&self, ablage: &Ablage, methode: &str, pfad: &str, rumpf: Option<&Value>) -> Result<Value, String> {
+        let url = if pfad.starts_with("https://") {
+            if !pfad.starts_with(BASIS) {
+                return Err("Fremde Adresse abgelehnt.".into());
+            }
+            pfad.to_string()
+        } else {
+            format!("{}{}", BASIS, pfad)
+        };
+        let mut versuch = 0;
+        loop {
+            let token = self.token(ablage, versuch > 0)?;
+            let mut kopf = self.kopf();
+            kopf.push(("Authorization".into(), format!("Bearer {}", token)));
+            let r = match rumpf {
+                Some(j) => Rumpf::Json(j),
+                None => Rumpf::Keiner,
+            };
+            let a = self.netz.senden(methode, &url, &kopf, r, persoenlich(&url))?;
+            if (a.status == 401 || a.status == 403) && versuch == 0 {
+                versuch += 1;
+                continue;
+            }
+            if a.status == 303 || a.status == 302 || a.status == 301 {
+                let ziel = a.ort.clone().unwrap_or_default();
+                if ziel.is_empty() {
+                    return Err("Weiterleitung ohne Ziel".into());
+                }
+                let ziel = if ziel.starts_with('/') { format!("{}{}", BASIS, &ziel[1..]) } else { ziel };
+                return self.api_mit(ablage, "GET", &ziel, None);
             }
             let v = a.json().unwrap_or(Value::Null);
             if a.status >= 300 {

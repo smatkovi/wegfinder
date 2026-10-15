@@ -5,9 +5,12 @@ Echtzeit und Verkehrsmittel in der Nähe – auf Sailfish-Telefonen (armv7hl,
 aarch64) und auf dem Nokia N9/N950. Ein **inoffizieller** Client, nicht von
 der iMobility GmbH oder den ÖBB.
 
-**Ohne Buchen und Bezahlen**: keine Tickets, keine Zahlungsmittel, kein
-Konto. Was die Android-App zum Buchen anbietet (Taxi, Scooter, Mietwagen),
-erscheint hier nur als Möglichkeit mit Dauer, Preisangabe und Ladestand.
+Für Routen, Abfahrten und Umgebung braucht es **kein Konto**. Preise
+(Vollpreis) stehen bei jeder Route. Unter **Sailfish** lassen sich
+Öffi-Tickets mit einem wegfinder-Konto kaufen (Kreditkarte/Debitkarte mit
+3-D Secure oder PayPal) und offline vorzeigen; am N9 nicht. Taxi, Scooter
+und Mietwagen werden nicht gebucht, nur mit Dauer, Preis und Ladestand
+gezeigt.
 
 ## Was es kann
 
@@ -28,6 +31,13 @@ erscheint hier nur als Möglichkeit mit Dauer, Preisangabe und Ladestand.
   Verkehrsmittel in deren Farbe. Unter Sailfish lassen sich Ziel und
   Fußweg an Pure Maps übergeben (wie in Fahrplan AT).
 * **Favoriten** und zuletzt gesuchte Verbindungen, nur auf dem Telefon.
+* **Preise** je Verbindung (Vollpreis ohne Ermäßigung; Taxi und Auto geschätzt).
+* **Ticketkauf (Sailfish)**: Angebot wählen (z. B. Einzelfahrt oder 24 Stunden),
+  Konto anmelden oder anlegen, E-Mail bestätigen, Name, Zahlungsmittel; gebucht
+  wird erst nach einem Dialog mit Ticket, Preis und Zahlungsmittel. Die
+  Kartendaten gehen nur an den Zahlungsdienst mpay24, nie in eine Datei oder
+  ins Protokoll. **Meine Tickets** mit dem Barcode des Servers, auch ohne Netz,
+  und PDF.
 
 ## Sparsam im 2G-Netz
 

@@ -11,6 +11,10 @@ Page {
     property var route: null
     property var preis: null     // aus v3/offers, siehe ErgebnisSeite
 
+    function kaufen() {
+        pageStack.push(Qt.resolvedUrl("KaufSeite.qml"), { startdaten: seite.preis.kauf, titel: seite.route.titel })
+    }
+
     function abfahrten(h) {
         if (h && h.id && h.id !== "")
             pageStack.push(Qt.resolvedUrl("AbfahrtenSeite.qml"), { station: h.id, name: h.name })
@@ -27,6 +31,11 @@ Page {
                 onClicked: Karten.zeigeOrt(seite.route.an.name, seite.route.an.lat, seite.route.an.lon)
             }
             MenuItem { text: "Karte"; onClicked: pageStack.push(Qt.resolvedUrl("KarteSeite.qml"), { route: seite.route }) }
+            MenuItem {
+                text: "Ticket kaufen"
+                visible: !!seite.preis && !!seite.preis.kauf
+                onClicked: seite.kaufen()
+            }
         }
 
         Column {
@@ -176,6 +185,13 @@ Page {
                 text: seite.preis ? W.verbinden([seite.preis.geschaetzt ? "" : "Vollpreis ohne Ermäßigung.",
                                                  seite.preis.hinweis, seite.preis.co2], " ") : ""
             }
+            Item { width: 1; height: Theme.paddingMedium; visible: !!seite.preis && !!seite.preis.kauf }
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: !!seite.preis && !!seite.preis.kauf
+                text: (seite.preis && seite.preis.kauf_titel !== "" ? seite.preis.kauf_titel : "Ticket kaufen") + " …"
+                onClicked: seite.kaufen()
+            }
             SectionHeader { text: "Hinweise"; visible: !!seite.route && seite.route.meldungen.length > 0 }
             Repeater {
                 model: seite.route ? seite.route.meldungen : []
@@ -204,7 +220,7 @@ Page {
                 wrapMode: Text.Wrap
                 color: Theme.secondaryHighlightColor
                 font.pixelSize: Theme.fontSizeExtraSmall
-                text: "Buchen und Bezahlen gibt es in dieser App nicht. Halt antippen: Abfahrten dort."
+                text: "Halt antippen: Abfahrten dort."
             }
         }
         VerticalScrollDecorator { }

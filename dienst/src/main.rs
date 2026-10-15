@@ -20,10 +20,14 @@ mod api;
 mod arten;
 mod format;
 mod imob;
+mod kauf;
+mod konto;
 mod kacheln;
 mod netz;
 mod orte;
 mod polylinie;
+mod tickets;
+mod zahlung;
 mod zeit;
 
 use serde_json::Value;
@@ -95,7 +99,8 @@ fn main() {
         let (id, befehl, json) = match (teile.next(), teile.next(), teile.next()) {
             (Some(i), Some(b), Some(j)) => (i.to_string(), b.to_string(), j.to_string()),
             _ => {
-                protokoll(&format!("wf-dienst: unlesbare Anfrage: {:.80}", zeile));
+                // Nur die Laenge: die Zeile kann Kartendaten oder ein Kennwort tragen.
+                protokoll(&format!("wf-dienst: unlesbare Anfrage ({} Zeichen)", zeile.len()));
                 continue;
             }
         };

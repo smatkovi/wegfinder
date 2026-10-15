@@ -26,6 +26,8 @@ pub struct Netz {
 pub struct Antwort {
     pub status: u16,
     pub text: String,
+    /// Location-Kopf bei Weiterleitungen
+    pub ort: Option<String>,
 }
 
 pub enum Rumpf<'a> {
@@ -54,6 +56,9 @@ impl Netz {
             .timeout_connect(Duration::from_secs(30))
             .timeout(Duration::from_secs(60))
             .max_idle_connections_per_host(4)
+            // Weiterleitungen selbst: ureq liesse dabei den
+            // Authorization-Kopf fallen (POST v3/flow antwortet mit 303).
+            .redirects(0)
             .build();
         Netz { agent }
     }
@@ -101,6 +106,7 @@ impl Netz {
             }
         };
         let status = antwort.status();
+        let ort = antwort.header("location").map(|s| s.to_string());
         let mut roh = Vec::new();
         antwort
             .into_reader()
@@ -117,12 +123,21 @@ impl Netz {
                 methode, pfad, status, roh.len(), anfang.replace('\n', " ")
             ));
         }
-        Ok(Antwort { status, text })
+        Ok(Antwort { status, text, ort })
     }
 
     /// Laedt eine Datei (Kartenkachel) herunter: (Status, Bytes).
     pub fn holen_roh(&self, url: &str) -> Result<(u16, Vec<u8>), String> {
-        let antwort = match self.agent.get(url).call() {
+        self.holen_roh_mit(url, &[])
+    }
+
+    /// Wie holen_roh, mit Koepfen (Ticket-PDF mit Anmeldung).
+    pub fn holen_roh_mit(&self, url: &str, kopf: &[(String, String)]) -> Result<(u16, Vec<u8>), String> {
+        let mut anfrage = self.agent.get(url);
+        for (k, v) in kopf {
+            anfrage = anfrage.set(k, v);
+        }
+        let antwort = match anfrage.call() {
             Ok(a) => a,
             Err(ureq::Error::Status(_, a)) => a,
             Err(ureq::Error::Transport(t)) => return Err(transportfehler(&t)),
@@ -131,7 +146,7 @@ impl Netz {
         let mut roh = Vec::new();
         antwort
             .into_reader()
-            .take(4 * 1024 * 1024)
+            .take(16 * 1024 * 1024)
             .read_to_end(&mut roh)
             .map_err(|e| format!("Download abgebrochen: {}", e))?;
         Ok((status, roh))

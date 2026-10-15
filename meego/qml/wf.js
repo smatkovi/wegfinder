@@ -216,3 +216,31 @@ function verbinden(teile, trenner) {
             aus.push(teile[i])
     return aus.join(trenner)
 }
+
+// Gueltigkeit eines Tickets jetzt (von/bis: Unix-Sekunden, bis 0 = offen):
+// {text, farbe} wie in der App -- "Gültig ab …", "Aktiv", "Noch 1 h 20 min gültig", "Abgelaufen"
+function gueltigkeit(von, bis) {
+    var jetzt = Math.floor(new Date().getTime() / 1000)
+    if (von > 0 && jetzt < von) {
+        var d = new Date(von * 1000)
+        return { text: "Gültig ab " + TAGE[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + ". "
+                       + zweistellig(d.getHours()) + ":" + zweistellig(d.getMinutes()), farbe: "neutral" }
+    }
+    if (!bis || bis <= 0)
+        return { text: "Aktiv", farbe: "gut" }
+    if (jetzt > bis)
+        return { text: "Abgelaufen", farbe: jetzt - bis < 3600 ? "schlecht" : "neutral" }
+    var rest = bis - jetzt, t
+    if (rest < 3600) t = Math.max(1, Math.round(rest / 60)) + " min"
+    else if (rest < 86400) t = Math.floor(rest / 3600) + " h " + Math.floor(rest % 3600 / 60) + " min"
+    else t = Math.floor(rest / 86400) + (Math.floor(rest / 86400) === 1 ? " Tag" : " Tage")
+    var gesamt = von > 0 ? bis - von : rest
+    return { text: "Noch " + t + " gültig", farbe: gesamt > 0 && rest / gesamt < 0.15 ? "warnung" : "gut" }
+}
+
+function gueltigFarbe(f) {
+    if (f === "gut") return "#5cb85c"
+    if (f === "warnung") return "#ffb347"
+    if (f === "schlecht") return "#ff6666"
+    return "#a0a0a0"
+}

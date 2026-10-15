@@ -714,11 +714,20 @@ pub fn preise(v: &Value) -> Value {
             .collect();
         // "Du sparst 642 g CO2 im Vergleich zum PKW" (Aktion ohne Wirkung)
         let mut co2 = String::new();
+        // "Ticket kaufen": die Startdaten des Kaufablaufs (POST v3/flow)
+        let mut kauf = Value::Null;
+        let mut kauf_titel = String::new();
         for a in liste(o, "actions") {
             if let Some(n) = a.get("noop") {
                 let t = s(n, "left_text");
                 if !t.is_empty() {
                     co2 = t;
+                }
+            }
+            if let Some(f) = a.get("flow") {
+                if f.get("data").map(|d| d.is_object()).unwrap_or(false) {
+                    kauf = f["data"].clone();
+                    kauf_titel = s(f, "title");
                 }
             }
         }
@@ -728,6 +737,8 @@ pub fn preise(v: &Value) -> Value {
             "geschaetzt": geschaetzt,
             "hinweis": hinweis.join(" "),
             "co2": co2,
+            "kauf": kauf,
+            "kauf_titel": kauf_titel,
         }));
     }
     Value::Object(aus)
