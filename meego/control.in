@@ -1,0 +1,15 @@
+Package: wegfinder
+Version: @VERSION@
+Section: user/navigation
+Priority: optional
+Architecture: armel
+Depends: libqt4-declarative, libqt4-gui, qt-components, libqtm-location
+Maintainer: Sebastian Matkovich <sebastian.matkovich@gmail.com>
+Description: wegfinder fuer das N9 und N950 (inoffiziell)
+ Routen in Oesterreich mit Oeffis, Rad, Auto, Sharing und Taxi,
+ Abfahrten mit Echtzeit und Verkehrsmittel in der Naehe auf der Karte.
+ Sparsam im 2G-Netz. Ohne Buchen und Bezahlen.
+ Inoffizieller Client, nicht von der iMobility GmbH.
+Maemo-Display-Name: wegfinder
+XB-Maemo-Icon-26:
+@ICON@

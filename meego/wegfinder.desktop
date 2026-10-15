@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=wegfinder
+Comment=Routen, Abfahrten und Verkehrsmittel in der Nähe (inoffiziell)
+# Kein invoker: dessen Booster will ein Binary, das sich als Bibliothek
+# laden laesst ("cannot dynamically load executable").
+Exec=/opt/wegfinder/bin/wegfinder
+# Voller Pfad, nicht der Themenname: sonst malt der Starter ein Ersatzquadrat.
+Icon=/usr/share/icons/hicolor/80x80/apps/wegfinder.png
+X-Window-Icon=
+X-HildonDesk-ShowInToolbar=true
+X-Osso-Type=application/x-executable

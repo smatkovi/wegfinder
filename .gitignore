@@ -1,0 +1,17 @@
+build/
+target/
+# beim Bauen erzeugt (Logo nur aus der eigenen APK, nie im Repo)
+meego/icons/*.png
+sailfish/icons/
+meego/qml/bilder/
+sailfish/qml/bilder/
+sailfish/prebuilt/
+# mb2-Reste
+sailfish/RPMS/
+sailfish/.mb2/
+sailfish/installroot/
+sailfish/Makefile*
+sailfish/.qmake.stash
+sailfish/wegfinder
+sailfish/*.o
+sailfish/moc_*

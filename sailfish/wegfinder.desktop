@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=wegfinder
+Exec=wegfinder
+Name=wegfinder
+Comment=Routen, Abfahrten und Verkehrsmittel in der Nähe (inoffiziell)
+
+# Kein Sandkasten: die App startet den Netzdienst als Kindprozess, der unter
+# ~/.config/wegfinder, ~/.cache/wegfinder und ~/.local/share/wegfinder ablegt
+# und die Kartenkacheln ueber 127.0.0.1 ausliefert; Pure Maps wird ueber den
+# Sitzungsbus angesprochen.
+[X-Sailjail]
+Sandboxing=Disabled

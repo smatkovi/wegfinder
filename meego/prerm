@@ -1,0 +1,4 @@
+#!/bin/sh
+killall wegfinder >/dev/null 2>&1 || true
+killall wf-dienst >/dev/null 2>&1 || true
+exit 0

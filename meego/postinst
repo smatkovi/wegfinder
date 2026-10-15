@@ -1,0 +1,6 @@
+#!/bin/sh
+# Nach dem Auspacken: eine laufende alte Fassung beenden (samt Dienst).
+# killall, nicht pkill -x: das pkill des Busybox kennt -x nicht.
+killall wegfinder >/dev/null 2>&1 || true
+killall wf-dienst >/dev/null 2>&1 || true
+exit 0
